@@ -16,10 +16,11 @@ window.__ModuleLoader__.load({
 
     const zh = {
       nav: '穗秋MCP',
-      title: '穗秋MCP',
-      lead: '可以同时挂多台 MCP 服务器。每台的工具都会以 mcp__<名称>__<工具> 出现在 AI 手里。',
-      refresh: '刷新状态',
-      hint: '填好下面表单点保存就是新增一条；点上面的连接可以编辑已有的一条。',
+      title: '穗秋 MCP',
+      eyebrow: 'SUQIU / MCP WORKSPACE',
+      lead: '连接、诊断、管理你的 MCP 工具。',
+      refresh: '刷新',
+      hint: '手动填写或导入配置，保存后立即连接。点击连接卡片可编辑。',
       empty: '还没有连接，填下面的表单保存一条。',
       creating: '新增连接',
       editing: '正在编辑',
@@ -77,9 +78,10 @@ window.__ModuleLoader__.load({
     const en = {
       nav: 'Suqiu MCP',
       title: 'Suqiu MCP',
-      lead: 'Run several MCP servers at once. Each one exposes tools as mcp__<name>__<tool>.',
-      refresh: 'Refresh status',
-      hint: 'Fill the form below and save to add one; click a connection above to edit it.',
+      eyebrow: 'SUQIU / MCP WORKSPACE',
+      lead: 'Connect, inspect, and manage your MCP tools.',
+      refresh: 'Refresh',
+      hint: 'Fill in a connection or import a config. Save to connect; click a card to edit.',
       empty: 'No connections yet. Fill the form below and save.',
       creating: 'New connection',
       editing: 'Editing',
@@ -190,9 +192,12 @@ window.__ModuleLoader__.load({
         overscrollBehavior: 'contain',
         padding: '28px 20px 64px',
       },
-      headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '6px' },
-      title: { margin: 0, font: '600 20px/1.4 inherit' },
-      lead: { margin: '0 0 20px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px', lineHeight: 1.7 },
+      headRow: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '5px' },
+      brandHead: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+      eyebrow: { color: 'var(--dsw-alias-brand-primary)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', lineHeight: 1.4 },
+      title: { margin: 0, font: '700 23px/1.25 inherit', letterSpacing: '-0.025em', background: 'linear-gradient(100deg, var(--dsw-alias-label-primary), var(--dsw-alias-brand-primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+      lead: { margin: '0 0 22px', color: 'var(--dsw-alias-label-tertiary)', fontSize: '13px', lineHeight: 1.7 },
+      refreshButton: { padding: '6px 10px', marginTop: '2px' },
 
       /* ---------- 连接卡片 ---------- */
       /** 卡片 + 展开的风险详情是一个整体，外边距放在这层。 */
@@ -879,8 +884,13 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { style: styles.headRow },
-            h('h1', { style: styles.title }, t('title')),
-            h('button', { type: 'button', style: styles.smallButton, onClick: () => reload() }, t('refresh')),
+            h(
+              'div',
+              { style: styles.brandHead },
+              h('div', { style: styles.eyebrow }, t('eyebrow')),
+              h('h1', { style: styles.title }, t('title')),
+            ),
+            h('button', { type: 'button', style: { ...styles.smallButton, ...styles.refreshButton }, onClick: () => reload() }, t('refresh')),
           ),
           h('p', { style: styles.lead }, t('lead')),
 
