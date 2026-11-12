@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b6bff"/>
+      <stop offset="1" stop-color="#2f3ac4"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <!-- 中心节点：连接的中枢 -->
+  <circle cx="32" cy="32" r="9" fill="#fff" opacity="0.95"/>
+  <circle cx="32" cy="32" r="3.4" fill="#2f3ac4"/>
+  <!-- 四条辐条指向外圈节点，表示同时挂载多台服务器 -->
+  <g stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity="0.9">
+    <line x1="32" y1="23" x2="32" y2="14"/>
+    <line x1="41" y1="32" x2="50" y2="32"/>
+    <line x1="32" y1="41" x2="32" y2="50"/>
+    <line x1="23" y1="32" x2="14" y2="32"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="32" cy="11" r="4.2"/>
+    <circle cx="53" cy="32" r="4.2"/>
+    <circle cx="32" cy="53" r="4.2"/>
+    <circle cx="11" cy="32" r="4.2"/>
+  </g>
+</svg>

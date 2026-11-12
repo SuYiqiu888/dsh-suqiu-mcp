@@ -1,0 +1,14 @@
+# 依赖与安装缓存（插件运行时需要 node_modules，但它不进版本库）
+node_modules/
+.npm-cache/
+package-lock.json
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 临时脚本与日志
+*.log
+*.tmp

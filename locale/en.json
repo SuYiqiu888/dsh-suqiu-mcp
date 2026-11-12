@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Suqiu MCP",
+    "description": "Manage several MCP connections from the sidebar (HTTP URL or local command, headers, per-connection enable): add, edit, remove; each saved connection exposes its tools to the AI."
+  }
+}

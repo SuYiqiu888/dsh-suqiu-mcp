@@ -1,0 +1,8 @@
+# suqiu-mcp bundle patch。
+#
+# 这里只挂插件自己这一行：Host 半注册 suqiuMcp 远程服务，Client 半挂侧边栏入口。
+# 真正的 MCP 连接不写死在这，而是由界面保存进 profile 的 cordis.patch.yml 受管块
+# （# >>> suqiu-mcp:begin … # <<< suqiu-mcp:end），所以随时可以在页面里改。
+- insert:
+    - id: suqiu-mcp
+      name: suqiu-mcp
