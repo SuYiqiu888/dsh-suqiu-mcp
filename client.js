@@ -204,7 +204,14 @@ window.__ModuleLoader__.load({
         padding: '13px 15px',
         borderRadius: '12px',
         border: '1px solid var(--dsw-alias-border-l1)',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        /*
+         * 半透明玻璃感而不是实色块：把底色压到很低的透明度，
+         * 再叠一层背景模糊，让它透出下面的页面底色。
+         * 悬停时略微加深，给出可点击的反馈。
+         */
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent)',
+        backdropFilter: 'blur(12px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
         cursor: 'pointer',
         transition: 'border-color .15s, background-color .15s',
       },
@@ -223,19 +230,21 @@ window.__ModuleLoader__.load({
         flex: '0 0 auto',
         whiteSpace: 'nowrap',
       }),
-      /** 展开的风险详情面板，与卡片视觉相连。 */
+      /** 展开的风险详情面板，与卡片视觉相连（同样的半透明玻璃底）。 */
       auditPanel: {
         marginTop: '-2px',
         padding: '10px 15px 12px',
         border: '1px solid var(--dsw-alias-border-l1)',
         borderTop: 'none',
         borderRadius: '0 0 12px 12px',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent)',
+        backdropFilter: 'blur(12px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
       },
       cardActive: {
         borderColor: 'var(--dsw-alias-brand-primary)',
-        // 选中态用一层很淡的品牌色，比只换边框更明显
-        background: 'color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, var(--dsw-alias-bg-layer-1))',
+        // 选中态：品牌色叠在同一层半透明底色上，比只换边框更明显
+        background: 'color-mix(in srgb, var(--dsw-alias-brand-primary) 14%, transparent)',
       },
       cardMain: { flex: '1 1 auto', minWidth: 0 },
       cardTop: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
@@ -284,7 +293,9 @@ window.__ModuleLoader__.load({
         padding: '5px 11px',
         borderRadius: '8px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         color: 'var(--dsw-alias-label-secondary)',
         cursor: 'pointer',
         fontSize: '12px',
@@ -294,13 +305,21 @@ window.__ModuleLoader__.load({
       primary: {
         padding: '9px 20px',
         borderRadius: '9px',
-        border: 'none',
-        background: 'var(--dsw-alias-button-primary-fill, var(--dsw-alias-brand-primary))',
-        color: 'var(--dsw-alias-label-primary-foreground)',
+        border: '1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent)',
+        /*
+         * 不再用 button-primary-fill（深色主题里是纯黑）。
+         * 改成品牌色的半透明渐变，既保留主按钮的存在感，
+         * 又不会在深色背景上糊成一块黑。
+         */
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-brand-primary) 92%, transparent), color-mix(in srgb, var(--dsw-alias-brand-primary) 78%, transparent))',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        color: 'var(--dsw-alias-label-primary-foreground, #fff)',
         cursor: 'pointer',
         fontSize: '13px',
         fontWeight: 600,
         letterSpacing: '0.01em',
+        boxShadow: '0 1px 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, transparent)',
       },
       ghost: {
         padding: '9px 16px',
@@ -319,7 +338,9 @@ window.__ModuleLoader__.load({
         padding: '18px 16px',
         borderRadius: '12px',
         border: '1px solid var(--dsw-alias-border-l1)',
-        background: 'var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-1))',
+        background: 'color-mix(in srgb, var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-1)) 55%, transparent)',
+        backdropFilter: 'blur(12px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
       },
       sectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' },
       sectionTitle: { margin: 0, font: '600 14px/1.4 inherit' },
@@ -327,13 +348,14 @@ window.__ModuleLoader__.load({
 
       field: { marginBottom: '14px' },
       label: { display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)' },
+      /** 输入框同样半透明，才和卡片/折叠区是一套材质。 */
       input: {
         boxSizing: 'border-box',
         width: '100%',
         padding: '9px 11px',
         borderRadius: '9px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1))',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1)) 70%, transparent)',
         color: 'inherit',
         font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
         outline: 'none',
@@ -346,7 +368,7 @@ window.__ModuleLoader__.load({
         padding: '9px 11px',
         borderRadius: '9px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1))',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1)) 70%, transparent)',
         color: 'inherit',
         font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
         resize: 'vertical',
@@ -360,7 +382,9 @@ window.__ModuleLoader__.load({
         borderRadius: '12px',
         border: '1px solid var(--dsw-alias-border-l1)',
         padding: '12px 16px',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-layer-1) 52%, transparent)',
+        backdropFilter: 'blur(12px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(12px) saturate(1.15)',
       },
       summary: {
         cursor: 'pointer',
