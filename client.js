@@ -64,6 +64,7 @@ window.__ModuleLoader__.load({
       auditHint: '按工具名、描述与参数名判断风险等级，只做提示、不会拦截调用。',
       auditButton: '审核',
       auditing: '审核中…',
+      auditFailed: '审核失败',
       auditPick: '先选一条连接',
       riskLow: '低',
       riskMedium: '中',
@@ -123,6 +124,7 @@ window.__ModuleLoader__.load({
       auditHint: 'Scores tools by name, description and parameters. Advisory only; nothing is blocked.',
       auditButton: 'Audit',
       auditing: 'Auditing…',
+      auditFailed: 'Audit failed',
       auditPick: 'Pick a connection',
       riskLow: 'low',
       riskMedium: 'medium',
@@ -193,17 +195,42 @@ window.__ModuleLoader__.load({
       lead: { margin: '0 0 20px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px', lineHeight: 1.7 },
 
       /* ---------- 连接卡片 ---------- */
+      /** 卡片 + 展开的风险详情是一个整体，外边距放在这层。 */
+      cardWrap: { marginBottom: '9px' },
       card: {
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
         padding: '13px 15px',
-        marginBottom: '9px',
         borderRadius: '12px',
         border: '1px solid var(--dsw-alias-border-l1)',
         background: 'var(--dsw-alias-bg-layer-1)',
         cursor: 'pointer',
         transition: 'border-color .15s, background-color .15s',
+      },
+      /** 风险徽标：小胶囊，颜色即等级。 */
+      riskBadge: (color) => ({
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 9px',
+        borderRadius: '7px',
+        border: '1px solid color-mix(in srgb, ' + color + ' 35%, transparent)',
+        background: 'color-mix(in srgb, ' + color + ' 10%, transparent)',
+        color,
+        fontSize: '11px',
+        fontWeight: 600,
+        lineHeight: '17px',
+        flex: '0 0 auto',
+        whiteSpace: 'nowrap',
+      }),
+      /** 展开的风险详情面板，与卡片视觉相连。 */
+      auditPanel: {
+        marginTop: '-2px',
+        padding: '10px 15px 12px',
+        border: '1px solid var(--dsw-alias-border-l1)',
+        borderTop: 'none',
+        borderRadius: '0 0 12px 12px',
+        background: 'var(--dsw-alias-bg-layer-1)',
       },
       cardActive: {
         borderColor: 'var(--dsw-alias-brand-primary)',
@@ -466,9 +493,10 @@ window.__ModuleLoader__.load({
       const [importResult, setImportResult] = useState(null);
       // 手动填写区的展开状态：点连接卡片编辑时自动展开
       const [manualOpen, setManualOpen] = useState(false);
-      // 风险审核
-      const [auditTarget, setAuditTarget] = useState('');
-      const [auditResult, setAuditResult] = useState(null);
+      // 风险审核：按 serverName 存结果，列表加载后自动跑
+      const [audits, setAudits] = useState({});
+      // 当前展开风险详情的连接
+      const [expandedAudit, setExpandedAudit] = useState(null);
 
       const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -595,20 +623,6 @@ window.__ModuleLoader__.load({
         }
       };
 
-      /** 工具风险审核：只读，不改配置。 */
-      const runAudit = async () => {
-        if (auditTarget === '') return;
-        setBusy(true);
-        setAuditResult(null);
-        try {
-          setAuditResult(await props.audit({ serverName: auditTarget }));
-        } catch (error) {
-          setAuditResult({ ok: false, error: { message: String(error?.message ?? error) } });
-        } finally {
-          setBusy(false);
-        }
-      };
-
       const toggleEnabled = async (server) => {
         try {
           applyData(await props.setEnabled({ serverName: server.serverName, enabled: !(server.enabled !== false) }));
@@ -616,6 +630,44 @@ window.__ModuleLoader__.load({
           setNote({ kind: 'error', text: t('saveFailed') + '：' + String(error?.message ?? error) });
         }
       };
+
+      /**
+       * 自动审核：只审「已启用且已连上工具」的连接。
+       *
+       * 没连上的没东西可审，审了也只会得到一条错误，
+       * 所以这里按 toolCount > 0 过滤，卡片上也就不会出现红色的「审核失败」。
+       * 结果按 serverName 累积，已审过的不重复请求。
+       */
+      useEffect(() => {
+        let cancelled = false;
+        const pending = data.servers.filter(
+          (server) => server.enabled !== false && server.toolCount > 0 && audits[server.serverName] === undefined,
+        );
+        if (pending.length === 0) return undefined;
+
+        (async () => {
+          for (const server of pending) {
+            if (cancelled) return;
+            try {
+              const result = await props.audit({ serverName: server.serverName });
+              if (cancelled) return;
+              setAudits((current) => ({ ...current, [server.serverName]: result }));
+            } catch (error) {
+              if (cancelled) return;
+              setAudits((current) => ({
+                ...current,
+                [server.serverName]: { ok: false, error: { message: String(error?.message ?? error) } },
+              }));
+            }
+          }
+        })();
+
+        return () => {
+          cancelled = true;
+        };
+        // audits 只用来判断「是否已审过」，变化时重新跑不会重复请求
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [data.servers, props]);
 
       const field = (label, help, control) =>
         h('div', { style: styles.field }, h('label', { style: styles.label }, label), control, help ? h('div', { style: styles.help }, help) : null);
@@ -640,48 +692,157 @@ window.__ModuleLoader__.load({
         return { text: t('statusOff'), color: 'var(--dsw-alias-state-error-primary)', style: styles.error };
       };
 
+      /** 风险等级 → 界面文案。 */
+      const riskLabelOf = (translate, level) =>
+        level === 'critical'
+          ? translate('riskCritical')
+          : level === 'high'
+            ? translate('riskHigh')
+            : level === 'medium'
+              ? translate('riskMedium')
+              : translate('riskLow');
+
+      /** 风险等级 → 颜色。 */
+      const riskColorOf = (level) =>
+        level === 'critical' || level === 'high'
+          ? 'var(--dsw-alias-state-error-primary)'
+          : level === 'medium'
+            ? 'var(--dsw-alias-state-warn-primary)'
+            : 'var(--dsw-alias-state-success-primary)';
+
+      /** 详情里的小色块。 */
+      const riskChip = (level) => ({
+        ...styles.chip,
+        color: riskColorOf(level),
+        background: `color-mix(in srgb, ${riskColorOf(level)} 12%, transparent)`,
+        flex: '0 0 auto',
+      });
+
+      /**
+       * 审核结果 → 卡片上的徽标。
+       *
+       * 只有真审出结果才显示等级；尚未审完显示「审核中」，
+       * 失败则显示「审核失败」——都不该假装成「低风险」。
+       */
+      /**
+       * 审核结果 → 卡片上的徽标；返回 null 表示这台不需要显示徽标。
+       *
+       * 「不需要」有两种：停用的、以及没连上工具的——它们本来就不会被送去审核，
+       * 若照样显示「审核中」，徽标就会永远停在那个状态。
+       */
+      const riskBadgeOf = (audit, server) => {
+        if (server.enabled === false || (server.toolCount ?? 0) === 0) return null;
+        if (audit === undefined) return { label: t('auditing'), color: 'var(--dsw-alias-label-tertiary)', title: '' };
+        if (audit?.ok !== true) {
+          return { label: t('auditFailed'), color: 'var(--dsw-alias-label-tertiary)', title: audit?.error?.message ?? '' };
+        }
+        const level = audit.level;
+        const dangerous = audit.dangerous?.length ?? 0;
+        return {
+          label: dangerous > 0 ? `${riskLabelOf(t, level)} · ${dangerous}` : riskLabelOf(t, level),
+          color: riskColorOf(level),
+          title: dangerous > 0 ? `${dangerous} 个高危工具，点击查看` : '点击查看工具明细',
+        };
+      };
+
       const cards = data.servers.map((server) => {
         const status = statusOf(server);
         const isActive = selected === server.serverName;
         const target = server.transport === 'stdio' ? server.command || 'stdio' : server.url || '—';
+        const audit = audits[server.serverName];
+        const risk = riskBadgeOf(audit, server);
+        const auditOpen = expandedAudit === server.serverName;
+
         return h(
           'div',
-          {
-            key: server.serverName,
-            style: isActive ? { ...styles.card, ...styles.cardActive } : styles.card,
-            onClick: () => selectServer(server),
-          },
-          // 状态圆点
-          h('span', { style: styles.dot(status.color) }),
+          { key: server.serverName, style: styles.cardWrap },
           h(
             'div',
-            { style: styles.cardMain },
+            {
+              style: isActive ? { ...styles.card, ...styles.cardActive } : styles.card,
+              onClick: () => selectServer(server),
+            },
+            // 状态圆点
+            h('span', { style: styles.dot(status.color) }),
             h(
               'div',
-              { style: styles.cardTop },
-              h('span', { style: styles.cardName }, server.serverName),
-              server.toolCount > 0 ? h('span', { style: styles.badgeOk }, `${server.toolCount} ${t('toolsUnit')}`) : null,
-              h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+              { style: styles.cardMain },
+              h(
+                'div',
+                { style: styles.cardTop },
+                h('span', { style: styles.cardName }, server.serverName),
+                server.toolCount > 0 ? h('span', { style: styles.badgeOk }, `${server.toolCount} ${t('toolsUnit')}`) : null,
+                h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+              ),
+              h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
             ),
-            h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
-          ),
-          h(
-            'label',
-            { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
-            h('input', { type: 'checkbox', checked: server.enabled !== false, onChange: () => toggleEnabled(server) }),
-          ),
-          h(
-            'button',
-            {
-              type: 'button',
-              style: confirming === server.serverName ? { ...styles.smallButton, ...styles.error } : styles.smallButton,
-              onClick: (event) => {
-                event.stopPropagation();
-                removeServer(server.serverName);
+
+            /*
+             * 风险徽标：放在「启用」勾选框左侧。
+             * 点它展开该连接的危险工具明细，不会触发卡片本身的编辑动作。
+             */
+            risk !== null
+              ? h(
+                  'button',
+                  {
+                    type: 'button',
+                    title: risk.title,
+                    style: { ...styles.riskBadge(risk.color), cursor: audit?.ok === true && audit.dangerous?.length > 0 ? 'pointer' : 'default' },
+                    onClick: (event) => {
+                      event.stopPropagation();
+                      if (audit?.ok !== true) return;
+                      setExpandedAudit(auditOpen ? null : server.serverName);
+                    },
+                  },
+                  risk.label,
+                  audit?.ok === true && audit.dangerous?.length > 0 ? h('span', { style: { opacity: 0.7, marginLeft: '4px' } }, auditOpen ? '▴' : '▾') : null,
+                )
+              : null,
+
+            h(
+              'label',
+              { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
+              h('input', { type: 'checkbox', checked: server.enabled !== false, onChange: () => toggleEnabled(server) }),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                style: confirming === server.serverName ? { ...styles.smallButton, ...styles.error } : styles.smallButton,
+                onClick: (event) => {
+                  event.stopPropagation();
+                  removeServer(server.serverName);
+                },
               },
-            },
-            confirming === server.serverName ? t('removeConfirm') : t('remove'),
+              confirming === server.serverName ? t('removeConfirm') : t('remove'),
+            ),
           ),
+
+          /* 展开的风险详情 */
+          auditOpen && audit?.ok === true
+            ? h(
+                'div',
+                { style: styles.auditPanel },
+                h(
+                  'div',
+                  { style: { ...styles.help, marginBottom: '6px' } },
+                  `${audit.total} ${t('toolsUnit')} · ${t('riskCritical')} ${audit.counts.critical} · ${t('riskHigh')} ${audit.counts.high} · ${t('riskMedium')} ${audit.counts.medium} · ${t('riskLow')} ${audit.counts.low}`,
+                ),
+                (audit.tools ?? []).map((tool) =>
+                  h(
+                    'div',
+                    { key: tool.name, style: styles.toolRow },
+                    h('span', { style: riskChip(tool.level) }, riskLabelOf(t, tool.level)),
+                    h(
+                      'span',
+                      { style: { ...styles.cardName, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px' } },
+                      tool.name,
+                    ),
+                    tool.tags?.length ? h('span', { style: { ...styles.muted, fontSize: '11px', flex: '0 0 auto' } }, tool.tags.join(' / ')) : null,
+                  ),
+                ),
+              )
+            : null,
         );
       });
 
@@ -836,75 +997,6 @@ window.__ModuleLoader__.load({
                   h('div', { style: styles.ok }, `${t('importDone')}：${importResult.imported?.length ?? 0}`),
                   (importResult.failed ?? []).map((item, index) => h('div', { key: index, style: styles.error }, `${item.name}：${item.message}`)),
                 )
-              : null,
-          ),
-
-          /* ── 工具风险审核 ── */
-          h(
-            'details',
-            { style: styles.details },
-            h('summary', { style: styles.summary }, t('auditTitle')),
-            h('p', { style: styles.sectionHint }, t('auditHint')),
-            data.servers.length === 0
-              ? h('div', { style: styles.muted }, t('empty'))
-              : h(
-                  'div',
-                  { style: styles.row },
-                  h(
-                    'select',
-                    {
-                      style: { ...styles.input, width: 'auto', minWidth: '160px' },
-                      value: auditTarget,
-                      onChange: (event) => setAuditTarget(event.target.value),
-                    },
-                    h('option', { value: '' }, t('auditPick')),
-                    data.servers.map((server) => h('option', { key: server.serverName, value: server.serverName }, server.serverName)),
-                  ),
-                  h('button', { type: 'button', disabled: busy || auditTarget === '', style: styles.smallButton, onClick: runAudit }, busy ? t('auditing') : t('auditButton')),
-                ),
-            auditResult !== null
-              ? auditResult.ok === true
-                ? h(
-                    'div',
-                    { style: { marginTop: '10px' } },
-                    h(
-                      'div',
-                      { style: { ...styles.help, marginBottom: '6px' } },
-                      `${auditResult.total} ${t('toolsUnit')} · ${
-                        auditResult.level === 'critical'
-                          ? t('riskCritical')
-                          : auditResult.level === 'high'
-                            ? t('riskHigh')
-                            : auditResult.level === 'medium'
-                              ? t('riskMedium')
-                              : t('riskLow')
-                      }`,
-                    ),
-                    (auditResult.tools ?? []).map((tool) =>
-                      h(
-                        'div',
-                        { key: tool.name, style: styles.toolRow },
-                        h(
-                          'span',
-                          {
-                            style: {
-                              ...styles.chip,
-                              color:
-                                tool.level === 'critical' || tool.level === 'high'
-                                  ? 'var(--dsw-alias-state-error-primary)'
-                                  : tool.level === 'medium'
-                                    ? 'var(--dsw-alias-state-warning-primary)'
-                                    : 'var(--dsw-alias-label-tertiary)',
-                            },
-                          },
-                          tool.level === 'critical' ? t('riskCritical') : tool.level === 'high' ? t('riskHigh') : tool.level === 'medium' ? t('riskMedium') : t('riskLow'),
-                        ),
-                        h('span', { style: { ...styles.cardName, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' } }, tool.name),
-                        tool.tags?.length ? h('span', { style: { ...styles.muted, fontSize: '11px' } }, tool.tags.join(' / ')) : null,
-                      ),
-                    ),
-                  )
-                : h('div', { style: { ...styles.error, marginTop: '8px' } }, auditResult.error?.message ?? '—')
               : null,
           ),
 
