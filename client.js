@@ -23,6 +23,8 @@ window.__ModuleLoader__.load({
       empty: '还没有连接，填下面的表单保存一条。',
       creating: '新增连接',
       editing: '正在编辑',
+      manualTitle: '手动填写',
+      manualHint: '逐项填写连接信息；点上方连接卡片可载入已有配置来修改。',
       name: '名称',
       nameHelp: '工具名前缀，只能用字母、数字、下划线、短横线',
       mode: '连接方式',
@@ -80,6 +82,8 @@ window.__ModuleLoader__.load({
       empty: 'No connections yet. Fill the form below and save.',
       creating: 'New connection',
       editing: 'Editing',
+      manualTitle: 'Fill in manually',
+      manualHint: 'Enter the connection field by field; click a card above to load an existing one for editing.',
       name: 'Name',
       nameHelp: 'Tool prefix; letters, digits, underscore or dash',
       mode: 'Transport',
@@ -460,6 +464,8 @@ window.__ModuleLoader__.load({
       // JSON 导入
       const [importText, setImportText] = useState('');
       const [importResult, setImportResult] = useState(null);
+      // 手动填写区的展开状态：点连接卡片编辑时自动展开
+      const [manualOpen, setManualOpen] = useState(false);
       // 风险审核
       const [auditTarget, setAuditTarget] = useState('');
       const [auditResult, setAuditResult] = useState(null);
@@ -498,6 +504,8 @@ window.__ModuleLoader__.load({
         setForm(formOf(server));
         setConfirming(null);
         setNote(null);
+        // 点卡片是要去改它，表单必须露出来，否则用户找不到刚才载入的配置
+        setManualOpen(true);
       };
 
       const submit = async () => {
@@ -693,15 +701,40 @@ window.__ModuleLoader__.load({
 
           data.servers.length === 0 ? h('div', { style: styles.empty }, t('empty')) : h('div', null, cards),
 
+          /*
+           * ── 手动填写 ──
+           * 与下面的「导入 JSON」并列，默认收起，避免一进页面就被一整屏表单压住。
+           * 点上方任一连接卡片会自动展开（那是「去改它」的意图）。
+           * 用受控 open，才能同时兼顾「默认收起」和「需要时自动展开」。
+           */
           h(
-            'div',
-            { style: styles.section },
+            'details',
+            {
+              style: styles.details,
+              open: manualOpen,
+              onToggle: (event) => {
+                // 用户手动点开/收起时同步状态，避免受控值与 DOM 打架
+                const next = event.currentTarget.open;
+                if (next !== manualOpen) setManualOpen(next);
+              },
+            },
             h(
-              'div',
-              { style: styles.sectionHead },
-              h('h2', { style: styles.sectionTitle }, selected === null ? t('creating') : `${t('editing')} · ${selected}`),
+              'summary',
+              {
+                style: styles.summary,
+                onClick: (event) => {
+                  // 不让浏览器自行切换：展开与否完全由 state 决定，
+                  // 否则 onToggle 与受控 open 会互相触发。
+                  event.preventDefault();
+                  setManualOpen((value) => !value);
+                },
+              },
+              t('manualTitle'),
+              selected !== null
+                ? h('span', { style: { ...styles.badge, fontWeight: 600 } }, selected)
+                : h('span', { style: { ...styles.muted, fontWeight: 400, fontSize: '12px' } }, t('creating')),
             ),
-            h('p', { style: styles.sectionHint }, t('hint')),
+            h('p', { style: styles.sectionHint }, t('manualHint')),
 
             field(t('name'), t('nameHelp'), input(form.name, (value) => setField('name', value), 'suqiu')),
 
