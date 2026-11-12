@@ -186,94 +186,219 @@ window.__ModuleLoader__.load({
       },
       headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '6px' },
       title: { margin: 0, font: '600 20px/1.4 inherit' },
-      lead: { margin: '0 0 18px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' },
+      lead: { margin: '0 0 20px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px', lineHeight: 1.7 },
+
+      /* ---------- 连接卡片 ---------- */
       card: {
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        padding: '12px 14px',
-        marginBottom: '10px',
-        borderRadius: '10px',
+        padding: '13px 15px',
+        marginBottom: '9px',
+        borderRadius: '12px',
         border: '1px solid var(--dsw-alias-border-l1)',
         background: 'var(--dsw-alias-bg-layer-1)',
         cursor: 'pointer',
+        transition: 'border-color .15s, background-color .15s',
       },
-      cardActive: { borderColor: 'var(--dsw-alias-state-business-primary)' },
+      cardActive: {
+        borderColor: 'var(--dsw-alias-brand-primary)',
+        // 选中态用一层很淡的品牌色，比只换边框更明显
+        background: 'color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, var(--dsw-alias-bg-layer-1))',
+      },
       cardMain: { flex: '1 1 auto', minWidth: 0 },
-      cardName: { font: '600 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace' },
-      cardMeta: { fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+      cardTop: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
+      cardName: { font: '600 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'nowrap' },
+      cardMeta: { marginTop: '3px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+
+      /** 状态圆点：一眼看出通没通，比纯文字快。 */
+      dot: (color) => ({
+        width: '8px',
+        height: '8px',
+        borderRadius: '999px',
+        background: color,
+        flex: '0 0 auto',
+        boxShadow: '0 0 0 3px ' + 'color-mix(in srgb, ' + color + ' 18%, transparent)',
+      }),
+
+      /** 小徽标：传输方式 / 工具数。 */
+      badge: {
+        padding: '1px 7px',
+        borderRadius: '6px',
+        background: 'var(--dsw-alias-bg-layer-2)',
+        color: 'var(--dsw-alias-label-secondary)',
+        fontSize: '11px',
+        fontWeight: 500,
+        lineHeight: '18px',
+        whiteSpace: 'nowrap',
+      },
+      badgeOk: {
+        padding: '1px 7px',
+        borderRadius: '6px',
+        background: 'color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent)',
+        color: 'var(--dsw-alias-state-success-primary)',
+        fontSize: '11px',
+        fontWeight: 600,
+        lineHeight: '18px',
+        whiteSpace: 'nowrap',
+      },
+
       ok: { color: 'var(--dsw-alias-state-success-primary)', fontWeight: 600 },
-      warn: { color: 'var(--dsw-alias-state-warning-primary)', fontWeight: 600 },
+      warn: { color: 'var(--dsw-alias-state-warn-primary)', fontWeight: 600 },
       error: { color: 'var(--dsw-alias-state-error-primary)', fontWeight: 600 },
       muted: { color: 'var(--dsw-alias-label-tertiary)' },
+
+      /* ---------- 按钮 ---------- */
       smallButton: {
-        padding: '4px 10px',
+        padding: '5px 11px',
         borderRadius: '8px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'transparent',
-        color: 'inherit',
+        background: 'var(--dsw-alias-bg-layer-1)',
+        color: 'var(--dsw-alias-label-secondary)',
         cursor: 'pointer',
         fontSize: '12px',
         flex: '0 0 auto',
+        transition: 'border-color .15s, color .15s',
       },
       primary: {
-        padding: '9px 18px',
-        borderRadius: '8px',
+        padding: '9px 20px',
+        borderRadius: '9px',
         border: 'none',
-        background: 'var(--dsw-alias-state-business-primary)',
+        background: 'var(--dsw-alias-button-primary-fill, var(--dsw-alias-brand-primary))',
         color: 'var(--dsw-alias-label-primary-foreground)',
         cursor: 'pointer',
         fontSize: '13px',
         fontWeight: 600,
+        letterSpacing: '0.01em',
       },
-      primaryDisabled: { opacity: 0.55, cursor: 'default' },
-      section: { marginTop: '22px', paddingTop: '18px', borderTop: '1px solid var(--dsw-alias-border-l1)' },
-      sectionTitle: { margin: '0 0 4px', font: '600 14px/1.4 inherit', color: 'var(--dsw-alias-label-secondary)' },
-      sectionHint: { margin: '0 0 14px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)' },
-      field: { marginBottom: '16px' },
-      label: { display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)' },
+      ghost: {
+        padding: '9px 16px',
+        borderRadius: '9px',
+        border: '1px solid var(--dsw-alias-border-l2)',
+        background: 'transparent',
+        color: 'var(--dsw-alias-label-secondary)',
+        cursor: 'pointer',
+        fontSize: '13px',
+      },
+      primaryDisabled: { opacity: 0.5, cursor: 'default' },
+
+      /* ---------- 分区 ---------- */
+      section: {
+        marginTop: '24px',
+        padding: '18px 16px',
+        borderRadius: '12px',
+        border: '1px solid var(--dsw-alias-border-l1)',
+        background: 'var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-1))',
+      },
+      sectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' },
+      sectionTitle: { margin: 0, font: '600 14px/1.4 inherit' },
+      sectionHint: { margin: '0 0 14px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', lineHeight: 1.6 },
+
+      field: { marginBottom: '14px' },
+      label: { display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)' },
       input: {
         boxSizing: 'border-box',
         width: '100%',
         padding: '9px 11px',
-        borderRadius: '8px',
+        borderRadius: '9px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        background: 'var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1))',
         color: 'inherit',
         font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
         outline: 'none',
+        transition: 'border-color .15s',
       },
       textarea: {
         boxSizing: 'border-box',
         width: '100%',
-        minHeight: '68px',
+        minHeight: '64px',
         padding: '9px 11px',
-        borderRadius: '8px',
+        borderRadius: '9px',
         border: '1px solid var(--dsw-alias-border-l2)',
-        background: 'var(--dsw-alias-bg-layer-1)',
+        background: 'var(--dsw-alias-bg-base, var(--dsw-alias-bg-layer-1))',
         color: 'inherit',
         font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
         resize: 'vertical',
+        outline: 'none',
       },
-      help: { marginTop: '5px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)' },
-      details: { marginTop: '18px', borderRadius: '10px', border: '1px solid var(--dsw-alias-border-l1)', padding: '10px 13px' },
-      summary: { cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--dsw-alias-label-secondary)' },
-      probeBox: { marginTop: '10px', padding: '9px 11px', borderRadius: '8px', background: 'var(--dsw-alias-bg-layer-1)', fontSize: '12px' },
-      chip: { display: 'inline-block', padding: '1px 7px', marginRight: '6px', borderRadius: '999px', border: '1px solid var(--dsw-alias-border-l2)', fontSize: '11px' },
-      toolRow: { display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0', borderTop: '1px dashed var(--dsw-alias-border-l1)' },
-      segmented: { display: 'flex', gap: '8px' },
-      segment: (active) => ({
-        padding: '7px 14px',
-        borderRadius: '999px',
-        border: '1px solid ' + (active ? 'var(--dsw-alias-state-business-primary)' : 'var(--dsw-alias-border-l2)'),
-        background: active ? 'var(--dsw-alias-state-business-primary)' : 'transparent',
-        color: active ? 'var(--dsw-alias-label-primary-foreground)' : 'var(--dsw-alias-label-primary)',
+      help: { marginTop: '5px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', lineHeight: 1.6 },
+
+      /* ---------- 折叠区 ---------- */
+      details: {
+        marginTop: '12px',
+        borderRadius: '12px',
+        border: '1px solid var(--dsw-alias-border-l1)',
+        padding: '12px 16px',
+        background: 'var(--dsw-alias-bg-layer-1)',
+      },
+      summary: {
         cursor: 'pointer',
         fontSize: '13px',
+        fontWeight: 600,
+        color: 'var(--dsw-alias-label-secondary)',
+        listStyle: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      },
+
+      /* ---------- 结果块 ---------- */
+      probeBox: {
+        marginTop: '12px',
+        padding: '11px 13px',
+        borderRadius: '10px',
+        background: 'var(--dsw-alias-bg-layer-2)',
+        fontSize: '12px',
+        lineHeight: 1.7,
+      },
+      chip: {
+        display: 'inline-block',
+        padding: '1px 8px',
+        marginRight: '6px',
+        borderRadius: '6px',
+        fontSize: '11px',
+        fontWeight: 600,
+        background: 'var(--dsw-alias-bg-layer-2)',
+      },
+      toolRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '7px 0',
+        borderTop: '1px solid var(--dsw-alias-border-l1)',
+      },
+
+      /* ---------- 分段控件（胶囊切换） ---------- */
+      segmented: {
+        display: 'inline-flex',
+        gap: '2px',
+        padding: '3px',
+        borderRadius: '10px',
+        background: 'var(--dsw-alias-bg-layer-2)',
+      },
+      segment: (active) => ({
+        padding: '7px 16px',
+        borderRadius: '8px',
+        border: 'none',
+        background: active ? 'var(--dsw-alias-bg-layer-1)' : 'transparent',
+        color: active ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-tertiary)',
+        boxShadow: active ? '0 1px 2px rgba(0,0,0,.08)' : 'none',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: active ? 600 : 400,
       }),
+
       row: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
       checkRow: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' },
-      patch: { marginTop: '18px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', wordBreak: 'break-all' },
+      patch: { marginTop: '20px', fontSize: '11px', color: 'var(--dsw-alias-label-dimmed)', wordBreak: 'break-all', lineHeight: 1.6 },
+      empty: {
+        padding: '32px 20px',
+        textAlign: 'center',
+        color: 'var(--dsw-alias-label-tertiary)',
+        fontSize: '13px',
+        border: '1px dashed var(--dsw-alias-border-l2)',
+        borderRadius: '12px',
+      },
     };
 
     function Icon(props) {
@@ -490,31 +615,48 @@ window.__ModuleLoader__.load({
       const input = (value, onChange, placeholder) =>
         h('input', { style: styles.input, value, placeholder, spellCheck: false, onChange: (event) => onChange(event.target.value) });
 
-      /** 状态文字：正常绿、连接中黄、未连接红、停用灰。 */
+      /** 状态：同时给出圆点颜色、文字与徽标，界面上眼睛先看到颜色。 */
       const statusOf = (server) => {
-        if (!(server.enabled !== false)) return { text: t('statusDisabled'), style: styles.muted };
-        if (server.toolCount > 0) return { text: t('statusOnline') + ' · ' + server.toolCount, style: styles.ok };
-        if (server.phase === 'failed') return { text: t('statusOff'), style: styles.error };
-        if (server.phase === 'loading' || server.phase === 'pending' || server.phase === null) return { text: t('statusPending'), style: styles.warn };
-        return { text: t('statusOff'), style: styles.error };
+        if (!(server.enabled !== false)) {
+          return { text: t('statusDisabled'), color: 'var(--dsw-alias-label-dimmed)', style: styles.muted };
+        }
+        if (server.toolCount > 0) {
+          return { text: t('statusOnline'), color: 'var(--dsw-alias-state-success-primary)', style: styles.ok };
+        }
+        if (server.phase === 'failed') {
+          return { text: t('statusOff'), color: 'var(--dsw-alias-state-error-primary)', style: styles.error };
+        }
+        if (server.phase === 'loading' || server.phase === 'pending' || server.phase === null) {
+          return { text: t('statusPending'), color: 'var(--dsw-alias-state-warn-primary)', style: styles.warn };
+        }
+        return { text: t('statusOff'), color: 'var(--dsw-alias-state-error-primary)', style: styles.error };
       };
 
       const cards = data.servers.map((server) => {
         const status = statusOf(server);
+        const isActive = selected === server.serverName;
+        const target = server.transport === 'stdio' ? server.command || 'stdio' : server.url || '—';
         return h(
           'div',
           {
             key: server.serverName,
-            style: selected === server.serverName ? { ...styles.card, ...styles.cardActive } : styles.card,
+            style: isActive ? { ...styles.card, ...styles.cardActive } : styles.card,
             onClick: () => selectServer(server),
           },
+          // 状态圆点
+          h('span', { style: styles.dot(status.color) }),
           h(
             'div',
             { style: styles.cardMain },
-            h('div', { style: styles.cardName }, server.serverName),
-            h('div', { style: styles.cardMeta }, server.transport === 'stdio' ? server.command || 'stdio' : server.url || '—'),
+            h(
+              'div',
+              { style: styles.cardTop },
+              h('span', { style: styles.cardName }, server.serverName),
+              server.toolCount > 0 ? h('span', { style: styles.badgeOk }, `${server.toolCount} ${t('toolsUnit')}`) : null,
+              h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+            ),
+            h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
           ),
-          h('span', { style: status.style }, status.text),
           h(
             'label',
             { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
@@ -549,12 +691,16 @@ window.__ModuleLoader__.load({
           ),
           h('p', { style: styles.lead }, t('lead')),
 
-          data.servers.length === 0 ? h('p', { style: styles.muted }, t('empty')) : h('div', null, cards),
+          data.servers.length === 0 ? h('div', { style: styles.empty }, t('empty')) : h('div', null, cards),
 
           h(
             'div',
             { style: styles.section },
-            h('h2', { style: styles.sectionTitle }, selected === null ? t('creating') : t('editing') + ' · ' + selected),
+            h(
+              'div',
+              { style: styles.sectionHead },
+              h('h2', { style: styles.sectionTitle }, selected === null ? t('creating') : `${t('editing')} · ${selected}`),
+            ),
             h('p', { style: styles.sectionHint }, t('hint')),
 
             field(t('name'), t('nameHelp'), input(form.name, (value) => setField('name', value), 'suqiu')),
@@ -604,7 +750,7 @@ window.__ModuleLoader__.load({
               'div',
               { style: styles.row },
               h('button', { type: 'button', disabled: busy, style: busy ? { ...styles.primary, ...styles.primaryDisabled } : styles.primary, onClick: submit }, busy ? t('saving') : t('save')),
-              h('button', { type: 'button', disabled: busy, style: styles.smallButton, onClick: testConnection }, busy ? t('testing') : t('test')),
+              h('button', { type: 'button', disabled: busy, style: styles.ghost, onClick: testConnection }, busy ? t('testing') : t('test')),
               h('button', { type: 'button', style: styles.smallButton, onClick: resetForm }, t('clear')),
               note !== null ? h('span', { style: note.kind === 'ok' ? styles.ok : styles.error }, note.text) : null,
             ),

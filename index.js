@@ -120,6 +120,24 @@ function phaseOf(state) {
   return phase === undefined ? null : phase;
 }
 
+/**
+ * 判断一个 loader 条目的 id 是不是我们要找的那条。
+ *
+ * 宿主会把 bundle 提供的条目挂在 `include` 分组下，实际 id 形如
+ * `include:suqiu-mcp-suqiu`，而配置里写的是 `suqiu-mcp-suqiu`。
+ * 直接全等比较会永远匹配不到，界面就会一直显示「连接中」。
+ * 所以两种形态都认：完全相等，或以 `:` 分隔后的最后一段相等。
+ * @param {unknown} actual 条目上的实际 id
+ * @param {string} expected 配置里写的 id
+ * @returns {boolean}
+ */
+function matchesEntryId(actual, expected) {
+  if (typeof actual !== 'string') return false;
+  if (actual === expected) return true;
+  const tail = actual.slice(actual.lastIndexOf(':') + 1);
+  return tail === expected;
+}
+
 function stripUndefined(value) {
   if (Array.isArray(value)) return value.map(stripUndefined);
   if (value !== null && typeof value === 'object') {
@@ -215,7 +233,7 @@ class SuqiuGateway extends TypertRemoteService {
     row.config = {
       ...config,
       toolCallTimeoutMs: 60000,
-      failOnatartupError: false,
+      failOnStartupError: false,
       reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30000, maxAttempts: 10 },
     };
     return row;
@@ -246,8 +264,9 @@ class SuqiuGateway extends TypertRemoteService {
       const loader = this.C.loader;
       if (loader !== undefined && typeof loader.entries === 'function') {
         for (const entry of loader.entries()) {
-          if (entry?.id === entryId) {
-            phase = phaseOf(entry.state ?? entry.phase);
+          if (matchesEntryId(entry?.id, entryId)) {
+            // fiber.state 是 Cordis 的阶段号；有的版本挂在 state，有的挂在 phase。
+            phase = phaseOf(entry.fiber?.state ?? entry.state ?? entry.phase);
             break;
           }
         }
@@ -261,7 +280,7 @@ class SuqiuGateway extends TypertRemoteService {
       if (tools !== undefined && typeof tools.schemas === 'function') {
         const prefix = 'mcp__' + serverName + '__';
         const schemas = tools.schemas();
-        if (Array.isArray(schemas)) toolCount = schemas.filter((sSchema) => typeof sSchema?.name === 'string' && sSchema.name.startsWith(prefix)).length;
+        if (Array.isArray(schemas)) toolCount = schemas.filter((item) => typeof item?.name === 'string' && item.name.startsWith(prefix)).length;
       }
     } catch {
       // 同上
