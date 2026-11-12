@@ -58,6 +58,24 @@ const serverShape = {
 };
 
 const savePayloadSchema = z.object({ ...serverShape, previousName: serverNameSchema.optional() }).superRefine(checkTransport);
+
+/**
+ * 探测专用形状：只要连接本身需要的字段。
+ *
+ * 单独定义而不是从 savePayloadSchema 上 `.omit()`——后者带 superRefine，
+ * Zod 明确禁止对含 refinement 的 object 做 omit/pick/extend。
+ */
+const probePayloadSchema = z
+  .object({
+    serverName: serverNameSchema,
+    transport: z.enum(['streamable-http', 'stdio'], { message: '连接方式只能是 HTTP 地址或本地命令' }),
+    url: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    command: z.string().optional(),
+    args: z.array(z.string()).optional(),
+  })
+  .superRefine(checkTransport);
+
 const serverPayloadSchema = z.object({ serverName: serverNameSchema });
 const enabledPayloadSchema = z.object({ serverName: serverNameSchema, enabled: z.boolean() });
 
@@ -328,21 +346,19 @@ class SuqiuGateway extends TypertRemoteService {
    *
    * 表单里填到一半就能测：先验字段，再连一次，把工具清单一起带回来，
    * 界面上可以立刻看到「这个服务会给我什么工具」。
+   *
+   * 注意：这里不能从 savePayloadSchema 上 `.omit()`——它带了 superRefine，
+   * 而 Zod 不允许对含 refinement 的 object 做 omit（会直接抛错）。
+   * 探测本来就用不到 enabled / previousName，单独用一个形状即可。
    */
   async probe(rawPayload) {
     const payload = rawPayload ?? {};
-    let connection;
-    try {
-      connection = savePayloadSchema.omit({ enabled: true, previousName: true }).safeParse(stripUndefined(payload));
-      if (!connection.success) {
-        const issues = connection.error.issues.map((issue) => issue.message);
-        return { ok: false, error: { code: 'invalid', message: issues.join('；'), hint: '先把表单填完整再测试' } };
-      }
-      connection = connection.data;
-    } catch (error) {
-      return { ok: false, error: { code: 'invalid', message: String(error?.message ?? error), hint: '' } };
+    const connection = probePayloadSchema.safeParse(stripUndefined(payload));
+    if (!connection.success) {
+      const issues = connection.error.issues.map((issue) => issue.message);
+      return { ok: false, error: { code: 'invalid', message: issues.join('；'), hint: '先把表单填完整再测试' } };
     }
-    return probeConnection(connection);
+    return probeConnection(connection.data);
   }
 
   /**
@@ -445,6 +461,14 @@ class SuqiuGateway extends TypertRemoteService {
     await this.writeRows([{ serverName: 'suqiu', transport: 'streamable-http', url: DEFAULT_URL, headers: {}, enabled: true }]);
   }
 }
+
+/**
+ * 仅测试使用的句柄。
+ *
+ * 生产路径不需要它——apply() 自己创建网关；但测试要能拿到实例直接调
+ * probe/audit/importJson，否则只能隔着远程协议黑盒验证。
+ */
+export const __gateway = SuqiuGateway;
 
 export function apply(ctx) {
   const gateway = new SuqiuGateway(ctx);
