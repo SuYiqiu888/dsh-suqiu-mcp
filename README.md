@@ -92,6 +92,10 @@ handshake before saving, import `mcpServers` JSON, and audit tool risk. Status i
 (green connected / yellow connecting / red not connected / grey disabled). Tools appear as
 `mcp__<name>__<tool>`.
 
+## 版本
+
+当前版本 **0.4.0**。历次变更见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## License
 
 MIT
