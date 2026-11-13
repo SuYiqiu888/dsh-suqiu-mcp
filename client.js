@@ -195,16 +195,39 @@ window.__ModuleLoader__.load({
         overscrollBehavior: 'contain',
         padding: '28px 20px 64px',
       },
+      /** 窄屏：左右留白收紧，底部多留一点便于手指滚动 */
+      scrollNarrow: { padding: '18px 12px 48px' },
       headRow: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '5px' },
+      /** 窄屏：标题与刷新按钮之间留白收紧，避免标题被挤到换行 */
+      headRowNarrow: { gap: '10px', alignItems: 'center' },
       brandHead: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
       eyebrow: { color: 'var(--dsw-alias-brand-primary)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.16em', lineHeight: 1.4 },
       title: { margin: 0, font: '700 23px/1.25 inherit', letterSpacing: '-0.025em', background: 'linear-gradient(100deg, var(--dsw-alias-label-primary), var(--dsw-alias-brand-primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+      /** 窄屏：标题略小，避免和刷新按钮抢宽度 */
+      titleNarrow: { font: '700 19px/1.3 inherit' },
       lead: { margin: '0 0 22px', color: 'var(--dsw-alias-label-tertiary)', fontSize: '13px', lineHeight: 1.7 },
       refreshButton: { padding: '6px 10px', marginTop: '2px' },
 
       /* ---------- 连接卡片 ---------- */
       /** 卡片 + 展开的风险详情是一个整体，外边距放在这层。 */
       cardWrap: { marginBottom: '9px' },
+      /** 宽屏：状态点 + 名称区 + 控件，一行铺开。 */
+      cardRow: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 },
+      /** 宽屏：右侧控件组。 */
+      cardControls: { display: 'flex', alignItems: 'center', gap: '10px', flex: '0 0 auto' },
+      /** 窄屏：卡片改纵向，两行互不挤压。 */
+      cardNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '13px' },
+      /** 窄屏：第一行（状态点 + 名称区）。 */
+      cardRowNarrow: { display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 },
+      /** 窄屏：第二行（风险徽标 + 开关 + 删除），贴右对齐。 */
+      cardControlsNarrow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        flexWrap: 'wrap',
+        justifyContent: 'flex-end',
+        paddingTop: '2px',
+      },
       card: {
         display: 'flex',
         alignItems: 'center',
@@ -430,6 +453,8 @@ window.__ModuleLoader__.load({
         padding: '7px 0',
         borderTop: '1px solid var(--dsw-alias-border-l1)',
       },
+      /** 窄屏：工具名放不下时允许换行，标签另起一行 */
+      toolRowNarrow: { flexWrap: 'wrap', alignItems: 'flex-start', gap: '6px' },
 
       /* ---------- 分段控件（胶囊切换） ---------- */
       segmented: {
@@ -450,8 +475,15 @@ window.__ModuleLoader__.load({
         fontSize: '13px',
         fontWeight: active ? 600 : 400,
       }),
+      /** 窄屏：分段控件撑满宽度，两段各占一半 */
+      segmentedNarrow: { display: 'flex', width: '100%' },
+      segmentNarrow: { flex: '1 1 0', padding: '9px 12px', textAlign: 'center' },
 
       row: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+      /** 窄屏：按钮组竖排铺满，拇指更好点 */
+      rowNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: '8px' },
+      /** 窄屏：按钮撑满一行，触控区域更大 */
+      btnFull: { width: '100%', padding: '11px 16px', fontSize: '14px', textAlign: 'center' },
       checkRow: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' },
       patch: { marginTop: '20px', fontSize: '11px', color: 'var(--dsw-alias-label-dimmed)', wordBreak: 'break-all', lineHeight: 1.6 },
       empty: {
@@ -463,6 +495,60 @@ window.__ModuleLoader__.load({
         borderRadius: '12px',
       },
     };
+
+    /**
+     * 宿主定义的移动端断点：视口宽度小于 768 视为窄屏。
+     * 与 @deepseek-ai/dsh-better-sidebar 的 NARROW_MAX_WIDTH 保持一致，
+     * 这样插件折叠成侧边栏、或整个窗口变窄时，行为与宿主其他界面同步。
+     */
+    const NARROW_MAX_WIDTH = 768;
+
+    /**
+     * 订阅视口是否窄屏。
+     *
+     * 样式是内联对象，用不了 @media，只能在这里判断窗口宽度。
+     *
+     * 注意不要直接用全局 `window`：DSH 用 factory 包装插件模块，
+     * 局部作用域里的 `window` 可能被宿主注入的对象遮蔽，
+     * 那样读到的 innerWidth 就是 undefined。这里优先读 document，
+     * 它是可靠的，且 resize 事件绑定在 window 上（若可用）。
+     * @returns {boolean} 是否为窄屏
+     */
+    function useNarrow() {
+      const { useState, useEffect } = React;
+
+      /** 读当前视口宽度，读不到返回 null。 */
+      const measure = () => {
+        if (typeof document !== 'undefined' && document.documentElement) {
+          const docWidth = document.documentElement.clientWidth;
+          if (typeof docWidth === 'number' && docWidth > 0) return docWidth;
+        }
+        if (typeof window !== 'undefined' && typeof window.innerWidth === 'number') return window.innerWidth;
+        return null;
+      };
+      const read = () => {
+        const width = measure();
+        return width === null ? false : width < NARROW_MAX_WIDTH;
+      };
+
+      const [narrow, setNarrow] = useState(read);
+
+      useEffect(() => {
+        const apply = () => setNarrow(read());
+        // 挂载后立即校准一次：首帧到 effect 之间窗口可能已变化
+        apply();
+        if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return undefined;
+        window.addEventListener('resize', apply);
+        // 手机横竖屏切换不一定触发 resize
+        window.addEventListener('orientationchange', apply);
+        return () => {
+          window.removeEventListener('resize', apply);
+          window.removeEventListener('orientationchange', apply);
+        };
+      }, []);
+
+      return narrow;
+    }
 
     function Icon(props) {
       const size = typeof props?.size === 'number' ? props.size : 20;
@@ -512,6 +598,8 @@ window.__ModuleLoader__.load({
 
     function Page(props) {
       const t = props.t;
+      // 窄屏（手机/折叠后的侧边栏）走紧凑布局
+      const narrow = useNarrow();
       const [data, setData] = useState({ servers: [], patchPath: '' });
       const [selected, setSelected] = useState(null);
       const [form, setForm] = useState(emptyForm);
@@ -807,6 +895,53 @@ window.__ModuleLoader__.load({
         const audit = audits[server.serverName];
         const risk = riskBadgeOf(audit, server);
         const auditOpen = expandedAudit === server.serverName;
+        const tools = server.liveToolCount ?? server.toolCount;
+
+        /*
+         * 窄屏布局：卡片从「一行铺开」改成「上下两段」。
+         *
+         * 一行版在 768px 以下会把名称、徽标、勾选框、删除按钮全挤在一起，
+         * 名称被压到看不清。窄屏下第一行放状态点+名称+徽标，
+         * 第二行放风险徽标+开关+删除，各占一行互不挤压。
+         */
+        const controls = h(
+          'div',
+          { style: narrow ? styles.cardControlsNarrow : styles.cardControls },
+          risk !== null
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  title: risk.title,
+                  style: { ...styles.riskBadge(risk.color), cursor: audit?.ok === true && audit.dangerous?.length > 0 ? 'pointer' : 'default' },
+                  onClick: (event) => {
+                    event.stopPropagation();
+                    if (audit?.ok !== true) return;
+                    setExpandedAudit(auditOpen ? null : server.serverName);
+                  },
+                },
+                risk.label,
+                audit?.ok === true && audit.dangerous?.length > 0 ? h('span', { style: { opacity: 0.7, marginLeft: '4px' } }, auditOpen ? '▴' : '▾') : null,
+              )
+            : null,
+          h(
+            'label',
+            { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
+            h('input', { type: 'checkbox', checked: server.enabled !== false, onChange: () => toggleEnabled(server) }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              style: confirming === server.serverName ? { ...styles.smallButton, ...styles.error } : styles.smallButton,
+              onClick: (event) => {
+                event.stopPropagation();
+                removeServer(server.serverName);
+              },
+            },
+            confirming === server.serverName ? t('removeConfirm') : t('remove'),
+          ),
+        );
 
         return h(
           'div',
@@ -814,63 +949,31 @@ window.__ModuleLoader__.load({
           h(
             'div',
             {
-              style: isActive ? { ...styles.card, ...styles.cardActive } : styles.card,
+              style: { ...styles.card, ...(narrow ? styles.cardNarrow : null), ...(isActive ? styles.cardActive : null) },
               onClick: () => selectServer(server),
             },
-            // 状态圆点
-            h('span', { style: styles.dot(status.color) }),
             h(
               'div',
-              { style: styles.cardMain },
+              { style: narrow ? styles.cardRowNarrow : styles.cardRow },
+              // 状态圆点
+              h('span', { style: styles.dot(status.color) }),
               h(
                 'div',
-                { style: styles.cardTop },
-                h('span', { style: styles.cardName }, server.serverName),
-                (server.liveToolCount ?? server.toolCount) > 0 ? h('span', { style: styles.badgeOk }, `${server.liveToolCount ?? server.toolCount} ${t('toolsUnit')}`) : null,
-                h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+                { style: styles.cardMain },
+                h(
+                  'div',
+                  { style: styles.cardTop },
+                  h('span', { style: styles.cardName }, server.serverName),
+                  tools > 0 ? h('span', { style: styles.badgeOk }, `${tools} ${t('toolsUnit')}`) : null,
+                  h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+                ),
+                h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
               ),
-              h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
+              // 宽屏时控件跟在右侧；窄屏时为空，由下面单独一行承载
+              narrow ? null : controls,
             ),
-
-            /*
-             * 风险徽标：放在「启用」勾选框左侧。
-             * 点它展开该连接的危险工具明细，不会触发卡片本身的编辑动作。
-             */
-            risk !== null
-              ? h(
-                  'button',
-                  {
-                    type: 'button',
-                    title: risk.title,
-                    style: { ...styles.riskBadge(risk.color), cursor: audit?.ok === true && audit.dangerous?.length > 0 ? 'pointer' : 'default' },
-                    onClick: (event) => {
-                      event.stopPropagation();
-                      if (audit?.ok !== true) return;
-                      setExpandedAudit(auditOpen ? null : server.serverName);
-                    },
-                  },
-                  risk.label,
-                  audit?.ok === true && audit.dangerous?.length > 0 ? h('span', { style: { opacity: 0.7, marginLeft: '4px' } }, auditOpen ? '▴' : '▾') : null,
-                )
-              : null,
-
-            h(
-              'label',
-              { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
-              h('input', { type: 'checkbox', checked: server.enabled !== false, onChange: () => toggleEnabled(server) }),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                style: confirming === server.serverName ? { ...styles.smallButton, ...styles.error } : styles.smallButton,
-                onClick: (event) => {
-                  event.stopPropagation();
-                  removeServer(server.serverName);
-                },
-              },
-              confirming === server.serverName ? t('removeConfirm') : t('remove'),
-            ),
+            // 窄屏时控件独占一行
+            narrow ? controls : null,
           ),
 
           /* 展开的风险详情 */
@@ -886,14 +989,27 @@ window.__ModuleLoader__.load({
                 (audit.tools ?? []).map((tool) =>
                   h(
                     'div',
-                    { key: tool.name, style: styles.toolRow },
+                    { key: tool.name, style: narrow ? { ...styles.toolRow, ...styles.toolRowNarrow } : styles.toolRow },
                     h('span', { style: riskChip(tool.level) }, riskLabelOf(t, tool.level)),
                     h(
                       'span',
                       { style: { ...styles.cardName, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px' } },
                       tool.name,
                     ),
-                    tool.tags?.length ? h('span', { style: { ...styles.muted, fontSize: '11px', flex: '0 0 auto' } }, tool.tags.join(' / ')) : null,
+                    tool.tags?.length
+                      ? h(
+                          'span',
+                          {
+                            style: {
+                              ...styles.muted,
+                              fontSize: '11px',
+                              // 窄屏下标签不再挤在右侧，改为独占一行的次要信息
+                              ...(narrow ? { flex: '1 0 100%', marginLeft: '2px' } : { flex: '0 0 auto' }),
+                            },
+                          },
+                          tool.tags.join(' / '),
+                        )
+                      : null,
                   ),
                 ),
               )
@@ -906,17 +1022,26 @@ window.__ModuleLoader__.load({
         { style: styles.page },
         h(
           'div',
-          { style: styles.scroll },
+          { style: narrow ? { ...styles.scroll, ...styles.scrollNarrow } : styles.scroll },
           h(
             'div',
-            { style: styles.headRow },
+            { style: narrow ? { ...styles.headRow, ...styles.headRowNarrow } : styles.headRow },
             h(
               'div',
               { style: styles.brandHead },
               h('div', { style: styles.eyebrow }, t('eyebrow')),
-              h('h1', { style: styles.title }, t('title')),
+              h('h1', { style: narrow ? { ...styles.title, ...styles.titleNarrow } : styles.title }, t('title')),
             ),
-            h('button', { type: 'button', disabled: busy, style: { ...styles.smallButton, ...styles.refreshButton, ...(busy ? styles.primaryDisabled : {}) }, onClick: () => refreshStatus() }, busy ? t('refreshing') : t('refresh')),
+            h(
+              'button',
+              {
+                type: 'button',
+                disabled: busy,
+                style: { ...styles.smallButton, ...styles.refreshButton, ...(busy ? styles.primaryDisabled : {}) },
+                onClick: () => refreshStatus(),
+              },
+              busy ? t('refreshing') : t('refresh'),
+            ),
           ),
           h('p', { style: styles.lead }, t('lead')),
 
@@ -965,9 +1090,9 @@ window.__ModuleLoader__.load({
               h('label', { style: styles.label }, t('mode')),
               h(
                 'div',
-                { style: styles.segmented },
-                h('button', { type: 'button', style: styles.segment(form.transport === 'streamable-http'), onClick: () => setField('transport', 'streamable-http') }, t('modeHttp')),
-                h('button', { type: 'button', style: styles.segment(form.transport === 'stdio'), onClick: () => setField('transport', 'stdio') }, t('modeStdio')),
+                { style: narrow ? { ...styles.segmented, ...styles.segmentedNarrow } : styles.segmented },
+                h('button', { type: 'button', style: narrow ? { ...styles.segment(form.transport === 'streamable-http'), ...styles.segmentNarrow } : styles.segment(form.transport === 'streamable-http'), onClick: () => setField('transport', 'streamable-http') }, t('modeHttp')),
+                h('button', { type: 'button', style: narrow ? { ...styles.segment(form.transport === 'stdio'), ...styles.segmentNarrow } : styles.segment(form.transport === 'stdio'), onClick: () => setField('transport', 'stdio') }, t('modeStdio')),
               ),
             ),
 
@@ -1002,10 +1127,28 @@ window.__ModuleLoader__.load({
 
             h(
               'div',
-              { style: styles.row },
-              h('button', { type: 'button', disabled: busy, style: busy ? { ...styles.primary, ...styles.primaryDisabled } : styles.primary, onClick: submit }, busy ? t('saving') : t('save')),
-              h('button', { type: 'button', disabled: busy, style: styles.ghost, onClick: testConnection }, busy ? t('testing') : t('test')),
-              h('button', { type: 'button', style: styles.smallButton, onClick: resetForm }, t('clear')),
+              { style: narrow ? { ...styles.row, ...styles.rowNarrow } : styles.row },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  disabled: busy,
+                  style: busy ? { ...styles.primary, ...styles.primaryDisabled } : narrow ? { ...styles.primary, ...styles.btnFull } : styles.primary,
+                  onClick: submit,
+                },
+                busy ? t('saving') : t('save'),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  disabled: busy,
+                  style: narrow ? { ...styles.ghost, ...styles.btnFull } : styles.ghost,
+                  onClick: testConnection,
+                },
+                busy ? t('testing') : t('test'),
+              ),
+              h('button', { type: 'button', style: narrow ? { ...styles.smallButton, ...styles.btnFull } : styles.smallButton, onClick: resetForm }, t('clear')),
               note !== null ? h('span', { style: note.kind === 'ok' ? styles.ok : styles.error }, note.text) : null,
             ),
 
