@@ -1,6 +1,6 @@
 {
   "name": "suqiu-mcp",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "在 DSH 侧边栏管理多台 MCP 服务器：填表新增、点卡片编辑、独立启停，工具直接交给 AI 调用。",
   "keywords": [
     "dsh",

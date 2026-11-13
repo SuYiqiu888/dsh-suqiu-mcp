@@ -214,18 +214,21 @@ window.__ModuleLoader__.load({
       /** 宽屏：状态点 + 名称区 + 控件，一行铺开。 */
       cardRow: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 },
       /** 宽屏：右侧控件组。 */
-      cardControls: { display: 'flex', alignItems: 'center', gap: '10px', flex: '0 0 auto' },
+      /** 宽屏：右侧控件组，固定靠右（名称区用 flex:1 撑开剩余空间） */
+      cardControls: { display: 'flex', alignItems: 'center', gap: '10px', flex: '0 0 auto', marginLeft: 'auto' },
       /** 窄屏：卡片改纵向，两行互不挤压。 */
       cardNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '13px' },
       /** 窄屏：第一行（状态点 + 名称区）。 */
       cardRowNarrow: { display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 },
-      /** 窄屏：第二行（风险徽标 + 开关 + 删除），贴右对齐。 */
+      /** 窄屏：第二行（开关 + 删除），整行铺满后靠右对齐。 */
       cardControlsNarrow: {
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
         flexWrap: 'wrap',
         justifyContent: 'flex-end',
+        // 不铺满的话这一行只有内容宽度，靠右就无从谈起
+        width: '100%',
         paddingTop: '2px',
       },
       card: {
@@ -277,6 +280,8 @@ window.__ModuleLoader__.load({
         // 选中态：品牌色叠在同一层半透明底色上，比只换边框更明显
         background: 'color-mix(in srgb, var(--dsw-alias-brand-primary) 14%, transparent)',
       },
+      /** 窄屏：名称行允许换行，名称+工具数+传输+安全检查多枚徽标不至于溢出 */
+      cardTopNarrow: { flexWrap: 'wrap', rowGap: '4px' },
       cardMain: { flex: '1 1 auto', minWidth: 0 },
       cardTop: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
       cardName: { font: '600 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'nowrap' },
@@ -862,12 +867,6 @@ window.__ModuleLoader__.load({
       });
 
       /**
-       * 审核结果 → 卡片上的徽标。
-       *
-       * 只有真审出结果才显示等级；尚未审完显示「审核中」，
-       * 失败则显示「审核失败」——都不该假装成「低风险」。
-       */
-      /**
        * 审核结果 → 卡片上的徽标；返回 null 表示这台不需要显示徽标。
        *
        * 「不需要」有两种：停用的、以及没连上工具的——它们本来就不会被送去审核，
@@ -904,9 +903,14 @@ window.__ModuleLoader__.load({
          * 名称被压到看不清。窄屏下第一行放状态点+名称+徽标，
          * 第二行放风险徽标+开关+删除，各占一行互不挤压。
          */
-        const controls = h(
-          'div',
-          { style: narrow ? styles.cardControlsNarrow : styles.cardControls },
+        /*
+         * 安全检查徽标：放在「连接方式」徽标旁边，而不是右边那排控件里。
+         *
+         * 它描述的是「这台的工具有多危险」，属于连接自身的属性，
+         * 和 HTTP/stdio 这种元信息是同一类；放在控件区会让它看起来像个操作按钮，
+         * 也挤占了勾选框和删除按钮的位置。
+         */
+        const riskBadge =
           risk !== null
             ? h(
                 'button',
@@ -923,7 +927,11 @@ window.__ModuleLoader__.load({
                 risk.label,
                 audit?.ok === true && audit.dangerous?.length > 0 ? h('span', { style: { opacity: 0.7, marginLeft: '4px' } }, auditOpen ? '▴' : '▾') : null,
               )
-            : null,
+            : null;
+
+        const controls = h(
+          'div',
+          { style: narrow ? styles.cardControlsNarrow : styles.cardControls },
           h(
             'label',
             { style: { ...styles.checkRow, flex: '0 0 auto' }, onClick: (event) => event.stopPropagation() },
@@ -962,10 +970,13 @@ window.__ModuleLoader__.load({
                 { style: styles.cardMain },
                 h(
                   'div',
-                  { style: styles.cardTop },
+                  // 窄屏允许换行，避免名称与两个徽标挤在一行溢出
+                  { style: narrow ? { ...styles.cardTop, ...styles.cardTopNarrow } : styles.cardTop },
                   h('span', { style: styles.cardName }, server.serverName),
                   tools > 0 ? h('span', { style: styles.badgeOk }, `${tools} ${t('toolsUnit')}`) : null,
                   h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
+                  // 安全检查徽标紧跟连接方式
+                  riskBadge,
                 ),
                 h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
               ),
