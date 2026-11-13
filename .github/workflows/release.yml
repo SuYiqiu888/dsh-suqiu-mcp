@@ -1,0 +1,86 @@
+name: Release
+
+# 推送 v* 形式的 tag（如 v0.4.0）时，自动构建并发布 GitHub Release。
+# 也可以在 Actions 页面手动指定 tag 触发。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag，例如 v0.4.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        # 有 lockfile 就走可复现安装，否则普通安装
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
+
+      - name: Syntax check
+        run: |
+          node --check index.js
+          node --check client.js
+          node --check lib/probe.js
+          node --check lib/audit.js
+          node --check lib/import-json.js
+
+      - name: Verify package metadata
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            if (!pkg.name || !pkg.version) throw new Error("package.json 缺少 name/version");
+            const required = [
+              "index.js", "client.js",
+              "lib/probe.js", "lib/audit.js", "lib/import-json.js",
+              "cordis.patch.yml", "icon.svg", "README.md",
+            ];
+            for (const f of required) {
+              if (!fs.existsSync(f)) throw new Error("缺少文件: " + f);
+            }
+            console.log("打包前检查通过: " + pkg.name + "@" + pkg.version);
+          '
+
+      - name: Generate release notes
+        run: node scripts/release-notes.mjs
+
+      - name: Pack tarball
+        run: pnpm pack
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: ${{ inputs.tag || github.ref_name }}
+          body_path: release-notes.md
+          files: '*.tgz'
+          draft: false
+          prerelease: false
+          generate_release_notes: false
