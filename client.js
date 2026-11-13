@@ -212,14 +212,19 @@ window.__ModuleLoader__.load({
       /** 卡片 + 展开的风险详情是一个整体，外边距放在这层。 */
       cardWrap: { marginBottom: '9px' },
       /** 宽屏：状态点 + 名称区 + 控件，一行铺开。 */
-      cardRow: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 },
+      /**
+       * 宽屏：状态点 + 名称区 + 控件，一行铺开。
+       * width:100% 是让控件能贴到卡片最右边缘的关键——
+       * 这层若只按内容宽度撑开，margin-left:auto 就只能贴到内容右端。
+       */
+      cardRow: { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, width: '100%' },
       /** 宽屏：右侧控件组。 */
       /** 宽屏：右侧控件组，固定靠右（名称区用 flex:1 撑开剩余空间） */
       cardControls: { display: 'flex', alignItems: 'center', gap: '10px', flex: '0 0 auto', marginLeft: 'auto' },
       /** 窄屏：卡片改纵向，两行互不挤压。 */
       cardNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '13px' },
-      /** 窄屏：第一行（状态点 + 名称区）。 */
-      cardRowNarrow: { display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 },
+      /** 窄屏：第一行（状态点 + 名称区），同样铺满卡片宽度。 */
+      cardRowNarrow: { display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0, width: '100%' },
       /** 窄屏：第二行（开关 + 删除），整行铺满后靠右对齐。 */
       cardControlsNarrow: {
         display: 'flex',
