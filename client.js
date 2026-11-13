@@ -20,6 +20,7 @@ window.__ModuleLoader__.load({
       eyebrow: 'SUQIU / MCP WORKSPACE',
       lead: '连接、诊断、管理你的 MCP 工具。',
       refresh: '刷新',
+      refreshing: '检测中…',
       hint: '手动填写或导入配置，保存后立即连接。点击连接卡片可编辑。',
       empty: '还没有连接，填下面的表单保存一条。',
       creating: '新增连接',
@@ -81,6 +82,7 @@ window.__ModuleLoader__.load({
       eyebrow: 'SUQIU / MCP WORKSPACE',
       lead: 'Connect, inspect, and manage your MCP tools.',
       refresh: 'Refresh',
+      refreshing: 'Checking…',
       hint: 'Fill in a connection or import a config. Save to connect; click a card to edit.',
       empty: 'No connections yet. Fill the form below and save.',
       creating: 'New connection',
@@ -158,6 +160,7 @@ window.__ModuleLoader__.load({
         descriptor('probe', true),
         descriptor('importJson', true),
         descriptor('audit', true),
+        descriptor('refresh', false),
       ],
     };
 
@@ -534,6 +537,24 @@ window.__ModuleLoader__.load({
         setData({ servers: Array.isArray(next.servers) ? next.servers : [], patchPath: next.patchPath ?? '' });
       }, []);
 
+      /**
+       * 刷新状态：用 refresh（真实握手）而不是 list（只读缓存）。
+       *
+       * list 读到的是 loader 里的工具注册数，而 dsh-mcp-client 断线后
+       * 不会注销工具，所以只靠 list 永远看不出「其实已经断了」。
+       */
+      const refreshStatus = useCallback(async () => {
+        setBusy(true);
+        try {
+          applyData(await props.refresh());
+          setNote(null);
+        } catch (error) {
+          setNote({ kind: 'error', text: t('loadFailed') + '：' + String(error?.message ?? error) });
+        } finally {
+          setBusy(false);
+        }
+      }, [applyData, props, t]);
+
       const reload = useCallback(async () => {
         try {
           applyData(await props.list());
@@ -704,12 +725,17 @@ window.__ModuleLoader__.load({
       const input = (value, onChange, placeholder) =>
         h('input', { style: styles.input, value, placeholder, spellCheck: false, onChange: (event) => onChange(event.target.value) });
 
-      /** 状态：同时给出圆点颜色、文字与徽标，界面上眼睛先看到颜色。 */
+      /** 状态：优先用 refresh 的真实探测结果，没有再退回缓存值。 */
       const statusOf = (server) => {
-        if (!(server.enabled !== false)) {
+        if (server.enabled === false) {
           return { text: t('statusDisabled'), color: 'var(--dsw-alias-label-dimmed)', style: styles.muted };
         }
-        if (server.toolCount > 0) {
+        // refresh 过：以真实握手为准
+        if (server.reachable === false) {
+          return { text: t('statusOff'), color: 'var(--dsw-alias-state-error-primary)', style: styles.error };
+        }
+        const count = server.liveToolCount ?? server.toolCount;
+        if (count > 0) {
           return { text: t('statusOnline'), color: 'var(--dsw-alias-state-success-primary)', style: styles.ok };
         }
         if (server.phase === 'failed') {
@@ -800,7 +826,7 @@ window.__ModuleLoader__.load({
                 'div',
                 { style: styles.cardTop },
                 h('span', { style: styles.cardName }, server.serverName),
-                server.toolCount > 0 ? h('span', { style: styles.badgeOk }, `${server.toolCount} ${t('toolsUnit')}`) : null,
+                (server.liveToolCount ?? server.toolCount) > 0 ? h('span', { style: styles.badgeOk }, `${server.liveToolCount ?? server.toolCount} ${t('toolsUnit')}`) : null,
                 h('span', { style: styles.badge }, server.transport === 'stdio' ? 'stdio' : 'HTTP'),
               ),
               h('div', { style: styles.cardMeta }, `${status.text} · ${target}`),
@@ -890,7 +916,7 @@ window.__ModuleLoader__.load({
               h('div', { style: styles.eyebrow }, t('eyebrow')),
               h('h1', { style: styles.title }, t('title')),
             ),
-            h('button', { type: 'button', style: { ...styles.smallButton, ...styles.refreshButton }, onClick: () => reload() }, t('refresh')),
+            h('button', { type: 'button', disabled: busy, style: { ...styles.smallButton, ...styles.refreshButton, ...(busy ? styles.primaryDisabled : {}) }, onClick: () => refreshStatus() }, busy ? t('refreshing') : t('refresh')),
           ),
           h('p', { style: styles.lead }, t('lead')),
 
@@ -1071,6 +1097,7 @@ window.__ModuleLoader__.load({
               probe: (payload) => call('probe', payload),
               importJson: (payload) => call('importJson', payload),
               audit: (payload) => call('audit', payload),
+              refresh: () => call('refresh'),
             }),
           },
           Page,

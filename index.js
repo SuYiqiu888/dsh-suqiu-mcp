@@ -89,6 +89,11 @@ const serverViewSchema = z.object({
   enabled: z.boolean(),
   phase: z.string().nullable(),
   toolCount: z.number().int().nonnegative(),
+  // 以下字段只在 refresh（真实探测）时出现
+  reachable: z.boolean().optional(),
+  liveToolCount: z.number().int().nonnegative().optional(),
+  latencyMs: z.number().nullable().optional(),
+  probeError: z.unknown().optional(),
 });
 
 const listResultSchema = z.object({
@@ -108,6 +113,7 @@ const MANIFEST = {
     { id: 'suqiu-mcp#suqiuMcp/probe', service: 'suqiuMcp', namespace: 'suqiuMcp', method: 'probe', invocation: { kind: 'direct' }, parameters: [{ name: 'payload', wire: 'payload', source: 'json', codec: codec('suqiu-mcp#ProbePayload', z.unknown()) }], result: codec('suqiu-mcp#ProbeResult', z.unknown()) },
     { id: 'suqiu-mcp#suqiuMcp/importJson', service: 'suqiuMcp', namespace: 'suqiuMcp', method: 'importJson', invocation: { kind: 'direct' }, parameters: [{ name: 'payload', wire: 'payload', source: 'json', codec: codec('suqiu-mcp#ImportPayload', z.unknown()) }], result: codec('suqiu-mcp#ImportResult', z.unknown()) },
     { id: 'suqiu-mcp#suqiuMcp/audit', service: 'suqiuMcp', namespace: 'suqiuMcp', method: 'audit', invocation: { kind: 'direct' }, parameters: [{ name: 'payload', wire: 'payload', source: 'json', codec: codec('suqiu-mcp#AuditPayload', z.unknown()) }], result: codec('suqiu-mcp#AuditResult', z.unknown()) },
+    { id: 'suqiu-mcp#suqiuMcp/refresh', service: 'suqiuMcp', namespace: 'suqiuMcp', method: 'refresh', invocation: { kind: 'direct' }, parameters: [], result: codec('suqiu-mcp#List', listResultSchema) },
   ],
   model: { services: [], events: [], objects: [] },
 };
@@ -288,7 +294,17 @@ class SuqiuGateway extends TypertRemoteService {
     return { phase, toolCount };
   }
 
-  async listResult() {
+  /**
+   * 组装连接列表。
+   *
+   * `live: true` 时对每条启用的连接做一次真实握手（refresh 用），
+   * 这样才能发现「进程还在、工具还注册着，但服务器其实已经断了」的情况：
+   * dsh-mcp-client 断线后不会注销工具，只靠 toolCount 判断会一直显示正常。
+   *
+   * @param {{ live?: boolean }} [options]
+   */
+  async listResult(options = {}) {
+    const live = options.live === true;
     const raw = await this.readRaw();
     const seen = new Set();
     const servers = [];
@@ -297,13 +313,45 @@ class SuqiuGateway extends TypertRemoteService {
       if (seen.has(payload.serverName)) continue;
       seen.add(payload.serverName);
       const { phase, toolCount } = this.statusOf(id, payload.serverName);
-      servers.push({ ...payload, phase, toolCount });
+      const server = { ...payload, phase, toolCount };
+
+      if (live && payload.enabled !== false) {
+        // 并发探测全部连接，避免逐条串行导致刷新很慢
+        server._probe = probeConnection(payload);
+      }
+      servers.push(server);
     }
+
+    if (live) {
+      const results = await Promise.all(
+        servers.map(async (server) => {
+          if (server._probe === undefined) return server;
+          const probed = await server._probe;
+          delete server._probe;
+          return {
+            ...server,
+            // 真实握手成功才算连上；失败则明确标记，并带上原因
+            reachable: probed.ok === true,
+            probeError: probed.ok === true ? null : probed.error,
+            liveToolCount: probed.ok === true ? probed.toolCount : 0,
+            latencyMs: probed.ok === true ? probed.latencyMs : null,
+          };
+        }),
+      );
+      return { servers: results, patchPath: this.patchPath() };
+    }
+
+    for (const server of servers) delete server._probe;
     return { servers, patchPath: this.patchPath() };
   }
 
   async list() {
     return this.listResult();
+  }
+
+  /** 刷新状态：真实探测每条连接，结果比 list() 更准但更慢。 */
+  async refresh() {
+    return this.listResult({ live: true });
   }
 
   async save(rawPayload) {
